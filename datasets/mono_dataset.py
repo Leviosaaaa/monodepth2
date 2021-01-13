@@ -141,6 +141,7 @@ class MonoDataset(data.Dataset):
         do_flip = self.is_train and random.random() > 0.5
 
         line = self.filenames[index].split()
+        # print(line[0])
         folder = line[0]
 
         if len(line) == 3:

@@ -40,7 +40,8 @@ def parse_args():
                             "mono+stereo_no_pt_640x192",
                             "mono_1024x320",
                             "stereo_1024x320",
-                            "mono+stereo_1024x320"])
+                            "mono+stereo_1024x320"],
+                            default="mono_1024x320")
     parser.add_argument('--ext', type=str,
                         help='image extension to search for in folder', default="jpg")
     parser.add_argument("--no_cuda",
@@ -62,14 +63,15 @@ def test_simple(args):
         device = torch.device("cpu")
 
     download_model_if_doesnt_exist(args.model_name)
-    model_path = os.path.join("models", args.model_name)
+    # model_path = os.path.join("models", args.model_name)
+    model_path = "/media/zyd/Elements/OMEN Ubuntu backup/monodepth2_models/19_3d_OFFd1_mix_finetuneRes50/models/weights_19"
     print("-> Loading model from ", model_path)
     encoder_path = os.path.join(model_path, "encoder.pth")
     depth_decoder_path = os.path.join(model_path, "depth.pth")
 
     # LOADING PRETRAINED MODEL
     print("   Loading pretrained encoder")
-    encoder = networks.ResnetEncoder(18, False)
+    encoder = networks.ResnetEncoder(50, False)  # original：18
     loaded_dict_enc = torch.load(encoder_path, map_location=device)
 
     # extract the height and width of image that this model was trained with
@@ -101,6 +103,7 @@ def test_simple(args):
         output_directory = args.image_path
     else:
         raise Exception("Can not find args.image_path: {}".format(args.image_path))
+    output_directory = "/home/zyd/respository/monodepth2_results/19_3d_OFFd1_mix_finetuneRes50"
 
     print("-> Predicting on {:d} test images".format(len(paths)))
 
@@ -115,7 +118,9 @@ def test_simple(args):
             # Load image and preprocess
             input_image = pil.open(image_path).convert('RGB')
             original_width, original_height = input_image.size
+            print("original_width: ", original_width)
             input_image = input_image.resize((feed_width, feed_height), pil.LANCZOS)
+            print("feed_width", feed_width)
             input_image = transforms.ToTensor()(input_image).unsqueeze(0)
 
             # PREDICTION
@@ -137,7 +142,7 @@ def test_simple(args):
             disp_resized_np = disp_resized.squeeze().cpu().numpy()
             vmax = np.percentile(disp_resized_np, 95)
             normalizer = mpl.colors.Normalize(vmin=disp_resized_np.min(), vmax=vmax)
-            mapper = cm.ScalarMappable(norm=normalizer, cmap='magma')
+            mapper = cm.ScalarMappable(norm=normalizer, cmap='magma')  # gray for 灰白深度图
             colormapped_im = (mapper.to_rgba(disp_resized_np)[:, :, :3] * 255).astype(np.uint8)
             im = pil.fromarray(colormapped_im)
 

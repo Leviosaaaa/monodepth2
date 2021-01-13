@@ -20,11 +20,12 @@ class MonodepthOptions:
         self.parser.add_argument("--data_path",
                                  type=str,
                                  help="path to the training data",
-                                 default=os.path.join(file_dir, "kitti_data"))
+                                 default=os.path.join(file_dir, "endo"))
+                                 # default="/media/zyd/Elements/EndoVis/opencv_resize_3d_all")
         self.parser.add_argument("--log_dir",
                                  type=str,
                                  help="log directory",
-                                 default=os.path.join(os.path.expanduser("~"), "tmp"))
+                                 default=os.path.join(os.path.expanduser("~"), "monodepth2_models"))
 
         # TRAINING options
         self.parser.add_argument("--model_name",
@@ -34,25 +35,29 @@ class MonodepthOptions:
         self.parser.add_argument("--split",
                                  type=str,
                                  help="which training split to use",
-                                 choices=["eigen_zhou", "eigen_full", "odom", "benchmark"],
-                                 default="eigen_zhou")
+                                 choices=["eigen_zhou", "eigen_full", "odom", "benchmark", 
+                                          "7d_OFFd2", "7d_OFFd3", 
+                                          "3d_OFFd1_mix", "3d_OFFd2_mix", "3d_OFFd3_mix",
+                                          "7d_OFFd1_mix", "7d_OFFd2_mix", "7d_OFFd3_mix", "7d_OFFd4_mix",
+                                          "7d_OFFd5_mix", "7d_OFFd6_mix", "7d_OFFd7_mix"],
+                                 default="7d_OFFd2_mix")
         self.parser.add_argument("--num_layers",
                                  type=int,
                                  help="number of resnet layers",
-                                 default=18,
+                                 default=50,  # original: 18
                                  choices=[18, 34, 50, 101, 152])
         self.parser.add_argument("--dataset",
                                  type=str,
                                  help="dataset to train on",
-                                 default="kitti",
-                                 choices=["kitti", "kitti_odom", "kitti_depth", "kitti_test"])
+                                 default="endo",
+                                 choices=["kitti", "kitti_odom", "kitti_depth", "kitti_test", "endo"])
         self.parser.add_argument("--png",
                                  help="if set, trains from raw KITTI png files (instead of jpgs)",
                                  action="store_true")
         self.parser.add_argument("--height",
                                  type=int,
                                  help="input image height",
-                                 default=192)
+                                 default=512)
         self.parser.add_argument("--width",
                                  type=int,
                                  help="input image width",
@@ -87,7 +92,7 @@ class MonodepthOptions:
         self.parser.add_argument("--batch_size",
                                  type=int,
                                  help="batch size",
-                                 default=12)
+                                 default=2)
         self.parser.add_argument("--learning_rate",
                                  type=float,
                                  help="learning rate",
@@ -140,7 +145,7 @@ class MonodepthOptions:
         self.parser.add_argument("--num_workers",
                                  type=int,
                                  help="number of dataloader workers",
-                                 default=12)
+                                 default=6)
 
         # LOADING options
         self.parser.add_argument("--load_weights_folder",
@@ -181,9 +186,9 @@ class MonodepthOptions:
                                  help="optional path to a .npy disparities file to evaluate")
         self.parser.add_argument("--eval_split",
                                  type=str,
-                                 default="eigen",
+                                 default="7d_OFFd3",
                                  choices=[
-                                    "eigen", "eigen_benchmark", "benchmark", "odom_9", "odom_10"],
+                                    "eigen", "eigen_benchmark", "benchmark", "odom_9", "odom_10", "7d_OFFd3"],
                                  help="which split to run eval on")
         self.parser.add_argument("--save_pred_disps",
                                  help="if set saves predicted disparities",
