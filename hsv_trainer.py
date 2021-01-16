@@ -27,7 +27,7 @@ import networks
 from IPython import embed
 
 
-class Trainer:
+class hsv_Trainer:
     def __init__(self, options):
         self.opt = options
         self.log_path = os.path.join(self.opt.log_dir, self.opt.model_name)
@@ -200,7 +200,7 @@ class Trainer:
         print("Training")
         self.set_train()
         
-        # print("  train_loader: ", self.train_loader)
+        print("  train_loader: ", self.train_loader)
         for batch_idx, inputs in enumerate(self.train_loader):
             before_op_time = time.time()
 
@@ -396,7 +396,6 @@ class Trainer:
     def compute_reprojection_loss(self, pred, target):
         """Computes reprojection loss between a batch of predicted and target images
         """
-        # print("pred: ", pred.shape)
         abs_diff = torch.abs(target - pred)
         l1_loss = abs_diff.mean(1, True)
 
@@ -407,7 +406,7 @@ class Trainer:
         # psnr_loss = (psnr_loss - torch.min(psnr_loss)) / (torch.max(psnr_loss) - torch.min(psnr_loss))
         # psnr_loss = torch.clamp((psnr_loss - 15) / 3, 0, 20)
         # print("norminalized psnr_loss: ", psnr_loss)
-        psnr_loss = torch.sigmoid((psnr_loss - torch.median(psnr_loss)) / 5) / 10  # 6.5 on 1.14
+        psnr_loss = torch.sigmoid((psnr_loss - torch.median(psnr_loss)) / 5) / 6.5
         # print("sigmoid psnr_loss: ", psnr_loss)
 
         if self.opt.no_ssim:
@@ -418,7 +417,6 @@ class Trainer:
         else:
             ssim_loss = self.ssim(pred, target).mean(1, True)
             reprojection_loss = 0.85 * ssim_loss + 0.15 * l1_loss
-        # print("ssim_loss: ", ssim_loss.shape)
         return reprojection_loss
 
     def compute_losses(self, inputs, outputs):
@@ -439,75 +437,27 @@ class Trainer:
             disp = outputs[("disp", scale)]
             color = inputs[("color", 0, scale)]
             target = inputs[("color", 0, source_scale)]
-            # hsv_mask = inputs[("hsv_mask", 0, scale)]  # added
+            hsv_mask = inputs[("hsv_mask", 0, source_scale)]  # added
 
-            for frame_id in self.opt.frame_ids[1:]:
+            for frame_id in self.opt.frame_ids[1:]:  # frame_id = 1 or -1
                 pred = outputs[("color", frame_id, scale)]
                 reprojection_losses.append(self.compute_reprojection_loss(pred, target))
+           
+            combined = torch.cat(reprojection_losses, 1)
+            to_optimise, idxs = torch.min(combined, dim=1)
 
-            reprojection_losses = torch.cat(reprojection_losses, 1)
-
-            if not self.opt.disable_automasking:
-                identity_reprojection_losses = []
-                for frame_id in self.opt.frame_ids[1:]:
-                    pred = inputs[("color", frame_id, source_scale)]
-                    identity_reprojection_losses.append(
-                        self.compute_reprojection_loss(pred, target))
-
-                identity_reprojection_losses = torch.cat(identity_reprojection_losses, 1)
-
-                if self.opt.avg_reprojection:
-                    identity_reprojection_loss = identity_reprojection_losses.mean(1, keepdim=True)
-                else:
-                    # save both images, and do min all at once below
-                    identity_reprojection_loss = identity_reprojection_losses
-
-            elif self.opt.predictive_mask:
-                # use the predicted mask
-                mask = outputs["predictive_mask"]["disp", scale]
-                if not self.opt.v1_multiscale:
-                    mask = F.interpolate(
-                        mask, [self.opt.height, self.opt.width],
-                        mode="bilinear", align_corners=False)
-
-                reprojection_losses *= mask
-
-                # add a loss pushing mask to 1 (using nn.BCELoss for stability)
-                weighting_loss = 0.2 * nn.BCELoss()(mask, torch.ones(mask.shape).cuda())
-                loss += weighting_loss.mean()
-
-            if self.opt.avg_reprojection:
-                reprojection_loss = reprojection_losses.mean(1, keepdim=True)
-            else:
-                reprojection_loss = reprojection_losses
-
-            if not self.opt.disable_automasking:
-                # add random numbers to break ties
-                # https://github.com/nianticlabs/monodepth2/issues/286
-                identity_reprojection_loss += torch.randn(
-                    identity_reprojection_loss.shape).cuda() * 0.00001
-
-                combined = torch.cat((identity_reprojection_loss, reprojection_loss), dim=1)
-            else:
-                combined = reprojection_loss
-
-            if combined.shape[1] == 1:
-                to_optimise = combined
-            else:
-                to_optimise, idxs = torch.min(combined, dim=1)
-
-            if not self.opt.disable_automasking:
-                outputs["identity_selection/{}".format(scale)] = (
-                    idxs > identity_reprojection_loss.shape[1] - 1).float()
+            to_optimise = to_optimise.transpose(1, 2)
+            to_optimise = to_optimise[~hsv_mask]
+            # to_optimise[0][hsv_mask[0]] = 0
+            # to_optimise[1][hsv_mask[1]] = 0
+            # print("to_optimise: ", to_optimise.shape)           
 
             loss += to_optimise.mean()
-            # print("Loss to_optimise.mean(): ", to_optimise.mean())
             mean_disp = disp.mean(2, True).mean(3, True)
             norm_disp = disp / (mean_disp + 1e-7)
             smooth_loss = get_smooth_loss(norm_disp, color)
 
             loss += self.opt.disparity_smoothness * smooth_loss / (2 ** scale)
-            # print("Loss smooth_loss: ", self.opt.disparity_smoothness * smooth_loss / (2 ** scale))
             total_loss += loss
             losses["loss/{}".format(scale)] = loss
 

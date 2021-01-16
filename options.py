@@ -119,9 +119,15 @@ class MonodepthOptions:
         self.parser.add_argument("--predictive_mask",
                                  help="if set, uses a predictive masking scheme as in Zhou et al",
                                  action="store_true")
+        self.parser.add_argument("--HSV_mask",
+                                 help="if set, uses a HSV mask as in Li et al",
+                                 action="store_true")  # edited
+        self.parser.add_argument("--PSNR",
+                                 help="if set, use PSNR in the loss",
+                                 action="store_true")        
         self.parser.add_argument("--no_ssim",
                                  help="if set, disables ssim in the loss",
-                                 action="store_true")
+                                 action="store_true")  # edited
         self.parser.add_argument("--weights_init",
                                  type=str,
                                  help="pretrained or scratch",

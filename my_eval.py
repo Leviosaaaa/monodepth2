@@ -47,9 +47,9 @@ def write_excel(row, errors, pred_name, gt_name):
     print("Successfully wrote a set of errors.")
 
 if __name__ == '__main__':
-	gt_path = "/home/zyd/respository/sfmlearner_results/cache"
-	pred_path = "/home/zyd/respository/monodepth2_results/8_1213"
-	out_path = "/home/zyd/respository/monodepth2_results/fast_test"
+	gt_path = "/home/zyd/respository/monodepth2_results/keyframes"
+	pred_path = "/home/zyd/respository/monodepth2_results/20_OFFd2_mix_finetuneRes50_nomask"
+	out_path = "/home/zyd/respository/monodepth2_results/20_OFFd2_mix_finetuneRes50_nomask"
 	
 	pred_paths = glob.glob(os.path.join(pred_path, '*.{}'.format("npy")))
 	

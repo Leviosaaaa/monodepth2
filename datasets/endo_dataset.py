@@ -44,16 +44,25 @@ class endoDataset(MonoDataset):
 
     def get_color(self, folder, frame_index, side, do_flip):
         color = self.loader(self.get_image_path(folder, frame_index, side))
-
         if do_flip:
             color = color.transpose(pil.FLIP_LEFT_RIGHT)
-
+        # print("color: ", color)
         return color
+    
+    def hsv_mask(self, folder, frame_index, side, do_flip):  # added
+        hsv = self.hsv_loader(self.get_image_path(folder, frame_index, side))
+        if do_flip:
+            hsv = hsv.transpose(pil.FLIP_LEFT_RIGHT)
+        matrix = np.asarray(hsv)
+        mask_B = matrix[:,:,1] <= 0.05*255
+        mask_W = matrix[:,:,2] >= 0.99*255
+        mask = mask_B | mask_W
+        return mask
 
     def get_depth(self, folder, frame_index, side, do_flip):
         # print("frame_index", frame_index)
         # depth_filename = os.path.join(self.data_path, folder, "depthmaps/{:07d}.npy".format(int(frame_index)))
-        depth_gt = tifffile.imread('/home/zyd/respository/sfmlearner_results/cache/left_depth_map_d3k1_000000.tiff')
+        depth_gt = tifffile.imread('/home/zyd/respository/sfmlearner_results/cache/left_depth_map_d2k1_000000.tiff')
         # depth_gt = np.load(depth_filename)
         depth_gt = depth_gt[:, :, 2]
         depth_gt = skimage.transform.resize(

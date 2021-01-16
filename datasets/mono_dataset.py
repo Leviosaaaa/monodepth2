@@ -24,6 +24,10 @@ def pil_loader(path):
         with Image.open(f) as img:
             return img.convert('RGB')
 
+def hsv_loader(path):  #added
+    with open(path, 'rb') as f:
+        with Image.open(f) as img:
+            return img.convert('HSV')    
 
 class MonoDataset(data.Dataset):
     """Superclass for monocular dataloaders
@@ -62,6 +66,7 @@ class MonoDataset(data.Dataset):
         self.img_ext = img_ext
 
         self.loader = pil_loader
+        self.hsv_loader = hsv_loader  # added
         self.to_tensor = transforms.ToTensor()
 
         # We need to specify augmentations differently in newer versions of torchvision.
@@ -100,6 +105,13 @@ class MonoDataset(data.Dataset):
                 n, im, i = k
                 for i in range(self.num_scales):
                     inputs[(n, im, i)] = self.resize[i](inputs[(n, im, i - 1)])
+
+        for k in list(inputs):
+            mask = inputs[k]
+            if "hsv_mask" in k:
+                n, im, i = k
+                for i in range(self.num_scales):
+                    inputs[(n, im, i)] = np.resize(inputs[(n, im, i - 1)], (self.width // 2**i, self.height // 2**i))
 
         for k in list(inputs):
             f = inputs[k]
@@ -160,6 +172,10 @@ class MonoDataset(data.Dataset):
                 inputs[("color", i, -1)] = self.get_color(folder, frame_index, other_side, do_flip)
             else:
                 inputs[("color", i, -1)] = self.get_color(folder, frame_index + i, side, do_flip)
+                inputs[("hsv_mask", i, -1)] = self.hsv_mask(folder, frame_index + i, side, do_flip)
+                # print("\ni = ", i)
+                # print("\ninputs in mono_dataset: ", inputs.keys())
+                # print("\nhsv_mask: ", inputs[("color", i, -1)])
 
         # adjusting intrinsics to match each scale in the pyramid
         for scale in range(self.num_scales):
@@ -178,12 +194,12 @@ class MonoDataset(data.Dataset):
                 self.brightness, self.contrast, self.saturation, self.hue)
         else:
             color_aug = (lambda x: x)
-
         self.preprocess(inputs, color_aug)
-
+        
         for i in self.frame_idxs:
             del inputs[("color", i, -1)]
             del inputs[("color_aug", i, -1)]
+            del inputs[("hsv_mask", i, -1)]
 
         if self.load_depth:
             depth_gt = self.get_depth(folder, frame_index, side, do_flip)
@@ -201,6 +217,9 @@ class MonoDataset(data.Dataset):
         return inputs
 
     def get_color(self, folder, frame_index, side, do_flip):
+        raise NotImplementedError
+
+    def hsv_mask(self, folder, frame_index, side, do_flip):
         raise NotImplementedError
 
     def check_depth(self):

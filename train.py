@@ -14,5 +14,11 @@ opts = options.parse()
 
 
 if __name__ == "__main__":
-    trainer = Trainer(opts)
-    trainer.train()
+	if opts.HSV_mask:
+		from hsv_trainer import hsv_Trainer
+		trainer = hsv_Trainer(opts)
+		print("Training with hsv_Trainer")
+	else:
+		trainer = Trainer(opts)
+		print("Training with normal Trainer")
+	trainer.train()
