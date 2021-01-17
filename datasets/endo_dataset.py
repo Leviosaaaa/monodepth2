@@ -54,9 +54,9 @@ class endoDataset(MonoDataset):
         if do_flip:
             hsv = hsv.transpose(pil.FLIP_LEFT_RIGHT)
         matrix = np.asarray(hsv)
-        mask_B = matrix[:,:,1] <= 0.05*255
-        mask_W = matrix[:,:,2] >= 0.99*255
-        mask = mask_B | mask_W
+        mask_S = matrix[:,:,1] <= 0.05*255
+        mask_V = matrix[:,:,2] >= 0.99*255
+        mask = mask_S | mask_V
         return mask
 
     def get_depth(self, folder, frame_index, side, do_flip):

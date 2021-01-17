@@ -64,7 +64,7 @@ def test_simple(args):
 
     download_model_if_doesnt_exist(args.model_name)
     # model_path = os.path.join("models", args.model_name)
-    model_path = "/home/zyd/monodepth2_models/23_OFFd2_mix_finetuneRes50_HSV_mask/models/weights_19"
+    model_path = "/media/zyd/Elements/OMEN Ubuntu backup/monodepth2_models/11_OFFd2_mix_finetuneRes50/models/weights_2"
     print("-> Loading model from ", model_path)
     encoder_path = os.path.join(model_path, "encoder.pth")
     depth_decoder_path = os.path.join(model_path, "depth.pth")
@@ -103,7 +103,7 @@ def test_simple(args):
         output_directory = args.image_path
     else:
         raise Exception("Can not find args.image_path: {}".format(args.image_path))
-    output_directory = "/home/zyd/respository/monodepth2_results/23_OFFd2_mix_finetuneRes50_HSV_mask"
+    output_directory = "/home/zyd/respository/monodepth2_results/11_OFFd2_mix_finetuneRes50/weights_2"
 
     print("-> Predicting on {:d} test images".format(len(paths)))
 

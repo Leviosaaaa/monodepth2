@@ -437,7 +437,9 @@ class hsv_Trainer:
             disp = outputs[("disp", scale)]
             color = inputs[("color", 0, scale)]
             target = inputs[("color", 0, source_scale)]
-            hsv_mask = inputs[("hsv_mask", 0, source_scale)]  # added
+            hsv_mask = inputs[("hsv_mask", 0, scale)]  # added
+            print("disp: ", disp.shape)         
+            print("hsv_mask: ", hsv_mask.shape)
 
             for frame_id in self.opt.frame_ids[1:]:  # frame_id = 1 or -1
                 pred = outputs[("color", frame_id, scale)]
@@ -449,8 +451,7 @@ class hsv_Trainer:
             to_optimise = to_optimise.transpose(1, 2)
             to_optimise = to_optimise[~hsv_mask]
             # to_optimise[0][hsv_mask[0]] = 0
-            # to_optimise[1][hsv_mask[1]] = 0
-            # print("to_optimise: ", to_optimise.shape)           
+            # to_optimise[1][hsv_mask[1]] = 0  
 
             loss += to_optimise.mean()
             mean_disp = disp.mean(2, True).mean(3, True)
