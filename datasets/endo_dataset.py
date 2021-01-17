@@ -46,7 +46,6 @@ class endoDataset(MonoDataset):
         color = self.loader(self.get_image_path(folder, frame_index, side))
         if do_flip:
             color = color.transpose(pil.FLIP_LEFT_RIGHT)
-        # print("color: ", color)
         return color
     
     def hsv_mask(self, folder, frame_index, side, do_flip):  # added

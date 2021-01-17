@@ -406,7 +406,7 @@ class hsv_Trainer:
         # psnr_loss = (psnr_loss - torch.min(psnr_loss)) / (torch.max(psnr_loss) - torch.min(psnr_loss))
         # psnr_loss = torch.clamp((psnr_loss - 15) / 3, 0, 20)
         # print("norminalized psnr_loss: ", psnr_loss)
-        psnr_loss = torch.sigmoid((psnr_loss - torch.median(psnr_loss)) / 5) / 6.5
+        psnr_loss = torch.sigmoid((psnr_loss - torch.median(psnr_loss)) / 5) / 10
         # print("sigmoid psnr_loss: ", psnr_loss)
 
         if self.opt.no_ssim:
@@ -437,8 +437,9 @@ class hsv_Trainer:
             disp = outputs[("disp", scale)]
             color = inputs[("color", 0, scale)]
             target = inputs[("color", 0, source_scale)]
-            hsv_mask = inputs[("hsv_mask", 0, scale)]  # added
-            print("disp: ", disp.shape)         
+            hsv_mask = inputs[("hsv_mask", 0, source_scale)]  # added
+            hsv_mask = hsv_mask.transpose(1,2)
+            print("\ndisp: ", disp.shape)
             print("hsv_mask: ", hsv_mask.shape)
 
             for frame_id in self.opt.frame_ids[1:]:  # frame_id = 1 or -1
@@ -447,8 +448,7 @@ class hsv_Trainer:
            
             combined = torch.cat(reprojection_losses, 1)
             to_optimise, idxs = torch.min(combined, dim=1)
-
-            to_optimise = to_optimise.transpose(1, 2)
+            # to_optimise = to_optimise.transpose(1, 2)
             to_optimise = to_optimise[~hsv_mask]
             # to_optimise[0][hsv_mask[0]] = 0
             # to_optimise[1][hsv_mask[1]] = 0  

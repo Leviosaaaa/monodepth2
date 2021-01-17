@@ -175,8 +175,6 @@ class MonoDataset(data.Dataset):
                 inputs[("hsv_mask", i, -1)] = self.hsv_mask(folder, frame_index + i, side, do_flip)
                 # print("\ni = ", i)
                 # print("\ninputs in mono_dataset: ", inputs.keys())
-                print("\color in mono_dataset: ", inputs[("color", i, -1)])
-                print("\hsv_mask in mono_dataset: ", inputs[("hsv_mask", i, -1)].shape)
 
         # adjusting intrinsics to match each scale in the pyramid
         for scale in range(self.num_scales):

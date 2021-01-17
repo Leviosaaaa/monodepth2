@@ -439,7 +439,8 @@ class Trainer:
             disp = outputs[("disp", scale)]
             color = inputs[("color", 0, scale)]
             target = inputs[("color", 0, source_scale)]
-            # hsv_mask = inputs[("hsv_mask", 0, scale)]  # added
+            hsv_mask = inputs[("hsv_mask", 0, scale)]  # added
+            hsv_mask = hsv_mask.transpose(1,2)
 
             for frame_id in self.opt.frame_ids[1:]:
                 pred = outputs[("color", frame_id, scale)]
@@ -501,10 +502,9 @@ class Trainer:
                     idxs > identity_reprojection_loss.shape[1] - 1).float()
 
             loss += to_optimise.mean()
-            # print("Loss to_optimise.mean(): ", to_optimise.mean())
             mean_disp = disp.mean(2, True).mean(3, True)
             norm_disp = disp / (mean_disp + 1e-7)
-            smooth_loss = get_smooth_loss(norm_disp, color)
+            smooth_loss = get_smooth_loss(norm_disp, color, hsv_mask)
 
             loss += self.opt.disparity_smoothness * smooth_loss / (2 ** scale)
             # print("Loss smooth_loss: ", self.opt.disparity_smoothness * smooth_loss / (2 ** scale))
