@@ -199,7 +199,8 @@ def upsample(x):
     return F.interpolate(x, scale_factor=2, mode="nearest")
 
 
-def get_smooth_loss(disp, img, mask):
+# def get_smooth_loss(disp, img, mask):
+def get_smooth_loss(disp, img):
     """Computes the smoothness loss for a disparity image
     The color image is used for edge-aware smoothness
     """
@@ -212,13 +213,26 @@ def get_smooth_loss(disp, img, mask):
     grad_disp_x *= torch.exp(-grad_img_x)
     grad_disp_y *= torch.exp(-grad_img_y)
 
-    _, mask_x = mask.split([1, list(mask.size())[2] - 1], dim=2)  # scale 0: mask is torch.Size([2, 512, 640])
-    _, mask_y = mask.split([1, list(mask.size())[1] - 1], dim=1)
-    grad_disp_x = grad_disp_x[:, 0, :, :][~mask_x]
-    grad_disp_y = grad_disp_y[:, 0, :, :][~mask_y]
-
+    # _, mask_x = mask.split([1, list(mask.size())[2] - 1], dim = 2)  # scale 0: mask is torch.Size([2, 512, 640])
+    # _, mask_y = mask.split([1, list(mask.size())[1] - 1], dim = 1)
+    # grad_disp_x = grad_disp_x[:, 0, :, :][~mask_x]
+    # grad_disp_y = grad_disp_y[:, 0, :, :][~mask_y]
 
     return grad_disp_x.mean() + grad_disp_y.mean()
+
+
+# def get_smooth_loss(disp, img):
+#     # Computes the 2nd derivative smoothness loss for a disparity image
+
+#     dx = torch.abs(disp[:, :, :, :-1] - disp[:, :, :, 1:])
+#     dy = torch.abs(disp[:, :, :-1, :] - disp[:, :, 1:, :])
+
+#     dx2 = torch.abs(dx[:, :, :, :-1] - dx[:, :, :, 1:])
+#     dy2 = dy = torch.abs(dy[:, :, :-1, :] - dy[:, :, 1:, :])
+#     dxdy = torch.abs(dx[:, :, :, :-1] - dx[:, :, :, 1:])
+#     dydx = torch.abs(dy[:, :, :-1, :] - dy[:, :, 1:, :])
+
+#     return dx2.abs().mean() + dxdy.abs().mean() + dydx.abs().mean() + dy2.abs().mean()
 
 
 class SSIM(nn.Module):

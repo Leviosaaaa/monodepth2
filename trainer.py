@@ -116,7 +116,6 @@ class Trainer:
         #                  "kitti_odom": datasets.KITTIOdomDataset}
         datasets_dict = {"endo": datasets.endoDataset}       
         self.dataset = datasets_dict[self.opt.dataset]
-        print(self.dataset)
 
         fpath = os.path.join(os.path.dirname(__file__), "splits", self.opt.split, "{}_files.txt")
         train_filenames = readlines(fpath.format("train"))
@@ -195,7 +194,9 @@ class Trainer:
     def run_epoch(self):
         """Run a single epoch of training and validation
         """
+        self.model_optimizer.step()
         self.model_lr_scheduler.step()
+        print("-> Current learning rate: ", self.model_optimizer.state_dict()['param_groups'][0]['lr'])
 
         print("Training")
         self.set_train()
@@ -396,29 +397,24 @@ class Trainer:
     def compute_reprojection_loss(self, pred, target):
         """Computes reprojection loss between a batch of predicted and target images
         """
-        # print("pred: ", pred.shape)
         abs_diff = torch.abs(target - pred)
         l1_loss = abs_diff.mean(1, True)
-
-        mse = (abs_diff ** 2).mean(1, True)
-        mse = torch.clamp_min(mse, 1e-6)
-        psnr_loss = 10 * torch.log10(1. / mse)
-        # print("psnr_loss: ", psnr_loss)
-        # psnr_loss = (psnr_loss - torch.min(psnr_loss)) / (torch.max(psnr_loss) - torch.min(psnr_loss))
-        # psnr_loss = torch.clamp((psnr_loss - 15) / 3, 0, 20)
-        # print("norminalized psnr_loss: ", psnr_loss)
-        psnr_loss = torch.sigmoid((psnr_loss - torch.median(psnr_loss)) / 5) / 10  # 6.5 on 1.14
-        # print("sigmoid psnr_loss: ", psnr_loss)
-
+        
+        # mse = (abs_diff ** 2).mean(1, True)
+        # mse = torch.clamp(mse, 1e-6, 1e6)
+        # psnr_loss = 10 * torch.log10(1. / mse)
+        # # print("psnr_loss: ", torch.min(psnr_loss))
+        # psnr_loss = 0.003 * (torch.max(psnr_loss) - psnr_loss)
+        # # psnr_loss = (psnr_loss - torch.min(psnr_loss)) / (torch.max(psnr_loss) - torch.min(psnr_loss))
+        # # psnr_loss = torch.clamp((psnr_loss - 15) / 3, 0, 20)
+        
         if self.opt.no_ssim:
             reprojection_loss = l1_loss
-        if self.opt.PSNR:
-            ssim_loss = self.ssim(pred, target).mean(1, True)
-            reprojection_loss = 0.85 * ssim_loss + 0.15 * psnr_loss
+        elif self.opt.PSNR:
+            reprojection_loss = psnr_loss
         else:
             ssim_loss = self.ssim(pred, target).mean(1, True)
             reprojection_loss = 0.85 * ssim_loss + 0.15 * l1_loss
-        # print("ssim_loss: ", ssim_loss.shape)
         return reprojection_loss
 
     def compute_losses(self, inputs, outputs):
@@ -439,7 +435,7 @@ class Trainer:
             disp = outputs[("disp", scale)]
             color = inputs[("color", 0, scale)]
             target = inputs[("color", 0, source_scale)]
-            hsv_mask = inputs[("hsv_mask", 0, scale)]  # added
+            hsv_mask = inputs[("hsv_mask", 0, source_scale)]  # added
             hsv_mask = hsv_mask.transpose(1,2)
 
             for frame_id in self.opt.frame_ids[1:]:
@@ -501,13 +497,15 @@ class Trainer:
                 outputs["identity_selection/{}".format(scale)] = (
                     idxs > identity_reprojection_loss.shape[1] - 1).float()
 
+            # to_optimise = to_optimise[~hsv_mask]
+
             loss += to_optimise.mean()
             mean_disp = disp.mean(2, True).mean(3, True)
             norm_disp = disp / (mean_disp + 1e-7)
-            smooth_loss = get_smooth_loss(norm_disp, color, hsv_mask)
+            # smooth_loss = get_smooth_loss(norm_disp, color, hsv_mask)
+            smooth_loss = get_smooth_loss(norm_disp, color)
 
             loss += self.opt.disparity_smoothness * smooth_loss / (2 ** scale)
-            # print("Loss smooth_loss: ", self.opt.disparity_smoothness * smooth_loss / (2 ** scale))
             total_loss += loss
             losses["loss/{}".format(scale)] = loss
 

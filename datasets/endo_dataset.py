@@ -60,8 +60,8 @@ class endoDataset(MonoDataset):
 
     def get_depth(self, folder, frame_index, side, do_flip):
         # print("frame_index", frame_index)
-        # depth_filename = os.path.join(self.data_path, folder, "depthmaps/{:07d}.npy".format(int(frame_index)))
-        depth_gt = tifffile.imread('/home/zyd/respository/sfmlearner_results/cache/left_depth_map_d2k1_000000.tiff')
+        depth_filename = os.path.join(self.data_path, "d2/d2k1/depthmaps/left_depth_map_d2k1_000002.tiff")
+        depth_gt = tifffile.imread(depth_filename)
         # depth_gt = np.load(depth_filename)
         depth_gt = depth_gt[:, :, 2]
         depth_gt = skimage.transform.resize(
