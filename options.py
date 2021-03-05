@@ -123,8 +123,9 @@ class MonodepthOptions:
                                  help="if set, uses a HSV mask as in Li et al",
                                  action="store_true")  # edited
         self.parser.add_argument("--PSNR",
+                                 type=float,
                                  help="if set, use PSNR in the loss",
-                                 action="store_true")        
+                                 default=0)        
         self.parser.add_argument("--no_ssim",
                                  help="if set, disables ssim in the loss",
                                  action="store_true")  # edited
@@ -192,7 +193,7 @@ class MonodepthOptions:
                                  help="optional path to a .npy disparities file to evaluate")
         self.parser.add_argument("--eval_split",
                                  type=str,
-                                 default="7d_OFFd3",
+                                 default="7d_OFFd2",
                                  choices=[
                                     "eigen", "eigen_benchmark", "benchmark", "odom_9", "odom_10", "7d_OFFd3"],
                                  help="which split to run eval on")

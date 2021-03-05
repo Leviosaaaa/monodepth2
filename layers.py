@@ -213,24 +213,19 @@ def get_smooth_loss(disp, img):
     grad_disp_x *= torch.exp(-grad_img_x)
     grad_disp_y *= torch.exp(-grad_img_y)
 
-    # _, mask_x = mask.split([1, list(mask.size())[2] - 1], dim = 2)  # scale 0: mask is torch.Size([2, 512, 640])
-    # _, mask_y = mask.split([1, list(mask.size())[1] - 1], dim = 1)
-    # grad_disp_x = grad_disp_x[:, 0, :, :][~mask_x]
-    # grad_disp_y = grad_disp_y[:, 0, :, :][~mask_y]
-
     return grad_disp_x.mean() + grad_disp_y.mean()
 
 
 # def get_smooth_loss(disp, img):
 #     # Computes the 2nd derivative smoothness loss for a disparity image
+#     def gradient(pred):
+#         D_dx = pred[:, :, :, 1:] - pred[:, :, :, :-1]        
+#         D_dy = pred[:, :, 1:] - pred[:, :, :-1]
+#         return D_dx, D_dy
 
-#     dx = torch.abs(disp[:, :, :, :-1] - disp[:, :, :, 1:])
-#     dy = torch.abs(disp[:, :, :-1, :] - disp[:, :, 1:, :])
-
-#     dx2 = torch.abs(dx[:, :, :, :-1] - dx[:, :, :, 1:])
-#     dy2 = dy = torch.abs(dy[:, :, :-1, :] - dy[:, :, 1:, :])
-#     dxdy = torch.abs(dx[:, :, :, :-1] - dx[:, :, :, 1:])
-#     dydx = torch.abs(dy[:, :, :-1, :] - dy[:, :, 1:, :])
+#     dx, dy = gradient(disp)
+#     dx2, dxdy = gradient(dx)
+#     dydx, dy2 = gradient(dy)
 
 #     return dx2.abs().mean() + dxdy.abs().mean() + dydx.abs().mean() + dy2.abs().mean()
 

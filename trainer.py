@@ -24,7 +24,7 @@ from layers import *
 
 import datasets
 import networks
-from IPython import embed
+# from IPython import embed
 
 
 class Trainer:
@@ -52,16 +52,27 @@ class Trainer:
         if self.opt.use_stereo:
             self.opt.frame_ids.append("s")
 
+        # from timm.models import create_model
+        # self.models["encoder"] = create_model('pvt_tiny',
+        #                                         pretrained=False,
+        #                                         num_classes=1000,
+        #                                         drop_rate=0.0,
+        #                                         drop_path_rate=0.1,
+        #                                         drop_block_rate=None)
+        # print(self.models["encoder"])
         self.models["encoder"] = networks.ResnetEncoder(
-            self.opt.num_layers, self.opt.weights_init == "pretrained")
+            self.opt.num_layers, self.opt.weights_init == "pretrained")  
+        # self.models["encoder"] = networks.SEnetEncoder(
+        #     self.opt.num_layers, self.opt.weights_init == "pretrained")        
         self.models["encoder"].to(self.device)
         self.parameters_to_train += list(self.models["encoder"].parameters())
-
+        
+        self.models["encoder"].num_ch_enc = np.array([64, 64, 128, 256, 512])  # 试用PVT临时使用，避免报错
         self.models["depth"] = networks.DepthDecoder(
             self.models["encoder"].num_ch_enc, self.opt.scales)
         self.models["depth"].to(self.device)
         self.parameters_to_train += list(self.models["depth"].parameters())
-
+        
         if self.use_pose_net:
             if self.opt.pose_model_type == "separate_resnet":
                 self.models["pose_encoder"] = networks.ResnetEncoder(
@@ -76,6 +87,7 @@ class Trainer:
                     self.models["pose_encoder"].num_ch_enc,
                     num_input_features=1,
                     num_frames_to_predict_for=2)
+                print("pose decoder:", self.models["pose"])
 
             elif self.opt.pose_model_type == "shared":
                 self.models["pose"] = networks.PoseDecoder(
@@ -215,10 +227,11 @@ class Trainer:
 
             # log less frequently after the first 2000 steps to save time & disk space
             early_phase = batch_idx % self.opt.log_frequency == 0 and self.step < 2000
-            late_phase = self.step % 2000 == 0
+            late_phase = self.step % 500 == 0
 
             if early_phase or late_phase:
-                self.log_time(batch_idx, duration, losses["loss"].cpu().data)
+                # self.log_time(batch_idx, duration, losses["loss"].cpu().data)
+                self.log_time(batch_idx, duration, losses)
 
                 if "depth_gt" in inputs:
                     self.compute_depth_losses(inputs, outputs, losses)
@@ -400,32 +413,32 @@ class Trainer:
         abs_diff = torch.abs(target - pred)
         l1_loss = abs_diff.mean(1, True)
         
-        # mse = (abs_diff ** 2).mean(1, True)
-        # mse = torch.clamp(mse, 1e-6, 1e6)
-        # psnr_loss = 10 * torch.log10(1. / mse)
-        # # print("psnr_loss: ", torch.min(psnr_loss))
-        # psnr_loss = 0.003 * (torch.max(psnr_loss) - psnr_loss)
-        # # psnr_loss = (psnr_loss - torch.min(psnr_loss)) / (torch.max(psnr_loss) - torch.min(psnr_loss))
-        # # psnr_loss = torch.clamp((psnr_loss - 15) / 3, 0, 20)
+        mse = (abs_diff ** 2).mean(1, True)
+        mse = torch.clamp(mse, 1e-6, 1e6)
+        psnr_loss = 10 * torch.log10(1. / mse)
+        psnr_loss = (torch.max(psnr_loss) - psnr_loss)
         
         if self.opt.no_ssim:
             reprojection_loss = l1_loss
-        elif self.opt.PSNR:
-            reprojection_loss = psnr_loss
+        elif self.opt.PSNR != 0:
+            ssim_loss = self.ssim(pred, target).mean(1, True)
+            reprojection_loss = 0.85 * ssim_loss + 0.15 * l1_loss + psnr_loss * self.opt.PSNR
         else:
             ssim_loss = self.ssim(pred, target).mean(1, True)
             reprojection_loss = 0.85 * ssim_loss + 0.15 * l1_loss
-        return reprojection_loss
+        return reprojection_loss, psnr_loss * self.opt.PSNR
 
     def compute_losses(self, inputs, outputs):
         """Compute the reprojection and smoothness losses for a minibatch
         """
         losses = {}
         total_loss = 0
+        reprojection, smooth, PSNR = 0, 0, 0
 
         for scale in self.opt.scales:
             loss = 0
             reprojection_losses = []
+            PSNR_losses = []
 
             if self.opt.v1_multiscale:
                 source_scale = scale
@@ -435,21 +448,23 @@ class Trainer:
             disp = outputs[("disp", scale)]
             color = inputs[("color", 0, scale)]
             target = inputs[("color", 0, source_scale)]
-            hsv_mask = inputs[("hsv_mask", 0, source_scale)]  # added
-            hsv_mask = hsv_mask.transpose(1,2)
+            # hsv_mask = inputs[("hsv_mask", 0, scale)]  # added
+            # hsv_mask = hsv_mask.transpose(1,2)
 
             for frame_id in self.opt.frame_ids[1:]:
-                pred = outputs[("color", frame_id, scale)]
-                reprojection_losses.append(self.compute_reprojection_loss(pred, target))
+                pred = outputs[("color", frame_id, scale)]  # pred = Output
+                reproj, psnr = self.compute_reprojection_loss(pred, target)
+                reprojection_losses.append(reproj)
+                PSNR_losses.append(psnr)
 
             reprojection_losses = torch.cat(reprojection_losses, 1)
 
             if not self.opt.disable_automasking:
                 identity_reprojection_losses = []
                 for frame_id in self.opt.frame_ids[1:]:
-                    pred = inputs[("color", frame_id, source_scale)]
-                    identity_reprojection_losses.append(
-                        self.compute_reprojection_loss(pred, target))
+                    pred = inputs[("color", frame_id, source_scale)]  # pred = Input
+                    id_reproj, _ = self.compute_reprojection_loss(pred, target)
+                    identity_reprojection_losses.append(id_reproj)
 
                 identity_reprojection_losses = torch.cat(identity_reprojection_losses, 1)
 
@@ -499,18 +514,30 @@ class Trainer:
 
             # to_optimise = to_optimise[~hsv_mask]
 
-            loss += to_optimise.mean()
+            reproject = to_optimise.mean()
+            loss += reproject
+            reprojection += reproject
+
             mean_disp = disp.mean(2, True).mean(3, True)
             norm_disp = disp / (mean_disp + 1e-7)
             # smooth_loss = get_smooth_loss(norm_disp, color, hsv_mask)
             smooth_loss = get_smooth_loss(norm_disp, color)
 
-            loss += self.opt.disparity_smoothness * smooth_loss / (2 ** scale)
+            smoothness = self.opt.disparity_smoothness * smooth_loss / (2 ** scale)
+            loss += smoothness
+            smooth = smoothness
+            
+            PSNR_losses = torch.cat(PSNR_losses, 1)
+            PSNR += torch.mean(PSNR_losses)
+
             total_loss += loss
             losses["loss/{}".format(scale)] = loss
 
         total_loss /= self.num_scales
         losses["loss"] = total_loss
+        losses["reprojection"] = reprojection / self.num_scales
+        losses["smooth"] = smooth / self.num_scales
+        losses["PSNR"] = PSNR
         return losses
 
     def compute_depth_losses(self, inputs, outputs, losses):
@@ -546,13 +573,19 @@ class Trainer:
     def log_time(self, batch_idx, duration, loss):
         """Print a logging statement to the terminal
         """
+        total = loss["loss"]
+        reprojection = loss["reprojection"]
+        PSNR = loss["PSNR"]
+        smooth = loss["smooth"]
+
         samples_per_sec = self.opt.batch_size / duration
         time_sofar = time.time() - self.start_time
         training_time_left = (
             self.num_total_steps / self.step - 1.0) * time_sofar if self.step > 0 else 0
         print_string = "epoch {:>3} | batch {:>6} | examples/s: {:5.1f}" + \
-            " | loss: {:.5f} | time elapsed: {} | time left: {}"
-        print(print_string.format(self.epoch, batch_idx, samples_per_sec, loss,
+                       " | loss: {:.5f} | reprojection: {:.5f} | PSNR: {:.5f} | smooth: {:.8f} |" + \
+                       " | time elapsed: {} | time left: {}"
+        print(print_string.format(self.epoch, batch_idx, samples_per_sec, total, reprojection, PSNR, smooth,
                                   sec_to_hm_str(time_sofar), sec_to_hm_str(training_time_left)))
 
     def log(self, mode, inputs, outputs, losses):

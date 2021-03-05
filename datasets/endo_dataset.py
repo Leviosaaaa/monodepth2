@@ -71,3 +71,19 @@ class endoDataset(MonoDataset):
             depth_gt = np.fliplr(depth_gt)
 
         return depth_gt
+
+
+class endoOdomDataset(endoDataset):
+    """Endoscopy dataset for odometry training and testing
+    """
+    def __init__(self, *args, **kwargs):
+        super(endoOdomDataset, self).__init__(*args, **kwargs)
+
+    def get_image_path(self, folder, frame_index, side):
+        f_str = "{:07d}{}".format(frame_index, self.img_ext)
+        image_path = os.path.join(
+            self.data_path,
+            folder,
+            "image_{}".format(self.side_map[side]),
+            f_str)
+        return image_path      

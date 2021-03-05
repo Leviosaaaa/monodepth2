@@ -64,7 +64,7 @@ def test_simple(args):
 
     download_model_if_doesnt_exist(args.model_name)
     # model_path = os.path.join("models", args.model_name)
-    model_path = "/home/zyd/monodepth2_models/31_OFFd2_mix_finetuneRes50_Zhou_Ls/models/weights_19"
+    model_path = "/media/zyd/Elements/OMEN Ubuntu backup/monodepth2_models/26_poseTuran_PSNR_3d_OFFd1/models/weights_19"
     print("-> Loading model from ", model_path)
     encoder_path = os.path.join(model_path, "encoder.pth")
     depth_decoder_path = os.path.join(model_path, "depth.pth")
@@ -103,7 +103,7 @@ def test_simple(args):
         output_directory = args.image_path
     else:
         raise Exception("Can not find args.image_path: {}".format(args.image_path))
-    output_directory = "/home/zyd/respository/monodepth2_results/31_OFFd2_mix_finetuneRes50_Zhou_Ls"
+    output_directory = "/media/zyd/Elements/OMEN Ubuntu backup/respository/monodepth2_results/26_poseTuran_PSNR_3d_OFFd1"
 
     print("-> Predicting on {:d} test images".format(len(paths)))
 
@@ -118,9 +118,9 @@ def test_simple(args):
             # Load image and preprocess
             input_image = pil.open(image_path).convert('RGB')
             original_width, original_height = input_image.size
-            print("original_width: ", original_width)
+            # print("original_width: ", original_width)
             input_image = input_image.resize((feed_width, feed_height), pil.LANCZOS)
-            print("feed_width", feed_width)
+            # print("feed_width", feed_width)
             input_image = transforms.ToTensor()(input_image).unsqueeze(0)
 
             # PREDICTION

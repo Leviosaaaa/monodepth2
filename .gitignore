@@ -4,4 +4,7 @@ __pycache__
 *_disp.npy
 *.npz
 kitti_data
+endo
 models
+pretrained_model
+vscode

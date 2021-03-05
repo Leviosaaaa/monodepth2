@@ -1,10 +1,18 @@
 import os
 import glob
+import argparse
 import numpy as np
 import tifffile
 import cv2 as cv
 import xlwt
 import xlrd
+
+
+def parse_args():
+	parser = argparse.ArgumentParser(description='Compute depth errors.')
+	parser.add_argument('--gt_path', type=str, default='/media/zyd/Elements/EndoVis/0original_all')
+	parser.add_argument('--model_name', type=str, required=True)
+	return parser.parse_args()
 
 
 def compute_errors(gt, pred):
@@ -35,49 +43,38 @@ def compute_errors(gt, pred):
 
 	return rmse, rmse_log, abs_rel, sq_rel, a1, a2, a3, scale_factor
 
-#写Excel
-def write_excel(row, errors, pred_name, gt_name):
-    f = xlwt.Workbook()
-    sheet = f.add_sheet('sheet',cell_overwrite_ok=True)
-    for i in range(0,len(errors)):      #写行
-        sheet.write(row, i+1, str(errors[i]))
-    sheet.write(row, len(errors)+1, pred_name)
-    sheet.write(row, len(errors)+2, gt_name)
-    f.save('test.xls')
-    print("Successfully wrote a set of errors.")
+
+def find_tiff(gt_path, npy_path):
+	_, filename = os.path.split(npy_path)
+	id = filename[10:22]
+	tiff_path = os.path.join(gt_path, "d{}".format(id[2]), "k{}".format(id[4]), "Depth/left_depth_map{}.tiff".format(id))
+	return tiff_path
 
 if __name__ == '__main__':
-	gt_path = "/home/zyd/respository/monodepth2_results/keyframes"
-	pred_path = "/home/zyd/respository/monodepth2_results/20_OFFd2_mix_finetuneRes50_nomask"
-	out_path = "/home/zyd/respository/monodepth2_results/20_OFFd2_mix_finetuneRes50_nomask"
+	args = parse_args()
+	gt_path = args.gt_path
+	pred_path = os.path.join("/media/zyd/Elements/OMEN Ubuntu backup/respository/monodepth2_results", args.model_name, "depth")
 	
 	pred_paths = glob.glob(os.path.join(pred_path, '*.{}'.format("npy")))
-	
-	# if (len(pred_paths) != len(gt_paths)):
-	# 	print("-> SOS")
-	# else:
-	# 	print("-> Predicting on {:d} test images".format(len(pred_paths)))
-	print("-> Predicting on {:d} test images".format(len(pred_paths)))
-	
-	f = xlwt.Workbook()
-	sheet = f.add_sheet('sheet',cell_overwrite_ok=True)
+	print("-> Computing errors on {:d} test images".format(len(pred_paths)))
 
+	errors = []
 	for idx, npy_path in enumerate(pred_paths):
 		pred = np.load(npy_path)
-		
-		(filepath, filename) = os.path.split(npy_path)
-		tiff_path = os.path.join(gt_path, "left_depth_map_d3k1_{}.tiff".format(filename[16:22]))
-		(tiffpath, tiffname) = os.path.split(tiff_path)
+		tiff_path = find_tiff(gt_path, npy_path)
 		gt = tifffile.imread(tiff_path)
-
-		errors = compute_errors(gt, pred)
-		for i in range(0,len(errors)):      #写行
-			sheet.write(idx, i+1, str(errors[i]))
-		sheet.write(idx, len(errors)+1, filename)
-		sheet.write(idx, len(errors)+2, tiffname)
-
+		errors.append(compute_errors(gt, pred))
 		print("   Computed errors {:d} of {:d} images".format(idx + 1, len(pred_paths)))
-	
-	f.save('test.xls')
-	print("-> Done!")
+	print("-> Done! ^_^")
+
+	errors = np.array(errors)
+	from pandas.core.frame import DataFrame
+	errors = DataFrame(errors)
+	errors.dropna(axis=0, how='any')
+	print(errors.mean(axis=0))
+	# f = xlwt.Workbook()
+	# sheet = f.add_sheet('sheet', cell_overwrite_ok = True)
+	# excel_path = os.path.join(pred_path, "{}.xls".format(args.model_name))
+	# f.save(excel_path)
+
 	

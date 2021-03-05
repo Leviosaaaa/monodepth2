@@ -1,4 +1,5 @@
 {
     "python.pythonPath": "/home/zyd/miniconda3/bin/python",
-    "editor.fontFamily": "monospace"
+    "editor.fontFamily": "'Fira Code', 'Source Code Pro', Consolas",
+    "editor.fontLigatures": true
 }
